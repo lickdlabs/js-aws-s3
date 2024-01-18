@@ -4,10 +4,10 @@
   "description": "Lickd AWS S3 client",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/lickdlabs/js-logger.git"
+    "url": "git+https://github.com/lickdlabs/js-aws-s3.git"
   },
   "bugs": {
-    "url": "https://github.com/lickdlabs/js-logger/issues"
+    "url": "https://github.com/lickdlabs/js-aws-s3/issues"
   },
   "homepage": "https://github.com/lickdlabs/js-aws-s3#readme",
   "main": "./dist/main/index.js",
