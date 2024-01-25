@@ -1,6 +1,6 @@
 {
   "name": "@lickd/aws-s3",
-  "version": "0.0.13",
+  "version": "0.0.18",
   "description": "Lickd AWS S3 client",
   "repository": {
     "type": "git",
@@ -38,7 +38,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.490.0",
-    "@lickd/logger": "^0.0.3"
+    "@lickd/logger": "^0.0.5"
   },
   "files": [
     "./dist/**"

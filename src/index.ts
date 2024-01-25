@@ -8,8 +8,8 @@ import {
   S3Client,
   S3ServiceException,
 } from "@aws-sdk/client-s3";
-import { Logger, createLogger } from "@lickd/logger";
-import { createWriteStream, truncateSync, unlinkSync } from "fs";
+import { ConsoleLogger, Logger } from "@lickd/logger";
+import { WriteStream } from "fs";
 
 export {
   GetObjectCommandOutput,
@@ -27,7 +27,7 @@ export class S3 {
     private s3: S3Client,
     logger?: Logger,
   ) {
-    this.logger = logger || createLogger();
+    this.logger = logger || new ConsoleLogger();
   }
 
   async headObject(
@@ -49,9 +49,9 @@ export class S3 {
       );
 
       return response;
-    } catch (e) {
+    } catch (error) {
       throw this.handleError(
-        e,
+        error,
         `failed to retrieve head of key '${key}' in bucket '${bucket}'`,
       );
     }
@@ -74,9 +74,9 @@ export class S3 {
       this.logger.info(`successfully got key '${key}' from bucket '${bucket}'`);
 
       return response;
-    } catch (e) {
+    } catch (error) {
       throw this.handleError(
-        e,
+        error,
         `failed to get key '${key}' from bucket '${bucket}'`,
       );
     }
@@ -105,10 +105,10 @@ export class S3 {
   async downloadObject(
     bucket: string,
     key: string,
-    filename: string,
+    writeStream: WriteStream,
   ): Promise<void> {
     this.logger.info(
-      `downloading key '${key}' from bucket '${bucket}' to '${filename}'`,
+      `downloading key '${key}' from bucket '${bucket}' to '${writeStream.path.toString()}'`,
     );
 
     const isComplete = (end: number, length: number) => end === length - 1;
@@ -136,11 +136,6 @@ export class S3 {
 
     let rangeAndLength = { start: -1, end: -1, length: -1 };
 
-    const writeStream = createWriteStream(filename).on("error", (e) => {
-      this.logger.error({ s3: e });
-      throw e;
-    });
-
     try {
       while (!isComplete(rangeAndLength.end, rangeAndLength.length)) {
         const { end } = rangeAndLength;
@@ -157,15 +152,12 @@ export class S3 {
       }
 
       this.logger.info(
-        `successfully downloaded key '${key}' from bucket '${bucket}' to '${filename}'`,
+        `successfully downloaded key '${key}' from bucket '${bucket}' to '${writeStream.path.toString()}'`,
       );
-    } catch (e) {
-      truncateSync(filename);
-      unlinkSync(filename);
-
+    } catch (error) {
       throw this.handleError(
-        e,
-        `failed downloading key '${key}' from bucket '${bucket}' to '${filename}'`,
+        error,
+        `failed downloading key '${key}' from bucket '${bucket}' to '${writeStream.path.toString()}'`,
       );
     }
   }
@@ -193,9 +185,9 @@ export class S3 {
       this.logger.info(
         `successfully updated metadata for key '${key}' in bucket '${bucket}'`,
       );
-    } catch (e) {
+    } catch (error) {
       throw this.handleError(
-        e,
+        error,
         `failed to update metadata for key '${key}' in bucket '${bucket}'`,
       );
     }
@@ -214,21 +206,24 @@ export class S3 {
       );
 
       this.logger.info(`successfully put key '${key}' in bucket '${bucket}'`);
-    } catch (e) {
+    } catch (error) {
       throw this.handleError(
-        e,
+        error,
         `failed to put key '${key}' in bucket '${bucket}'`,
       );
     }
   }
 
-  private handleError(e: unknown, message: string): S3ServiceException | Error {
-    if (e instanceof S3ServiceException) {
-      e.message = message;
+  private handleError(
+    error: unknown,
+    message: string,
+  ): S3ServiceException | Error {
+    if (error instanceof S3ServiceException) {
+      error.message = message;
 
-      this.logger.error({ s3: e });
+      this.logger.error({ error });
 
-      return e;
+      return error;
     }
 
     this.logger.error(message);
