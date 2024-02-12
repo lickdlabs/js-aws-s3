@@ -6,6 +6,7 @@ import {
   HeadObjectCommandOutput,
   PutObjectCommand,
   S3Client,
+  StorageClass,
 } from "@aws-sdk/client-s3";
 import { ConsoleLogger, ILogger } from "@lickd/logger";
 import { WriteStream } from "fs";
@@ -15,6 +16,7 @@ export {
   HeadObjectCommandOutput,
   S3Client,
   S3ServiceException,
+  StorageClass,
 } from "@aws-sdk/client-s3";
 
 export class S3 {
@@ -207,7 +209,12 @@ export class S3 {
     }
   }
 
-  async putObject(bucket: string, key: string, body: string): Promise<void> {
+  async putObject(
+    bucket: string,
+    key: string,
+    body: string,
+    storageClass: StorageClass = StorageClass.STANDARD,
+  ): Promise<void> {
     this.logger.info("putting object", { bucket, key });
 
     try {
@@ -216,6 +223,7 @@ export class S3 {
           Bucket: bucket,
           Key: key,
           Body: body,
+          StorageClass: storageClass,
         }),
       );
 
