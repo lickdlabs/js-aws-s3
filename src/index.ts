@@ -116,12 +116,12 @@ export class S3 {
   async downloadObject(
     bucket: string,
     key: string,
-    writeStream: WriteStream,
+    stream: WriteStream,
   ): Promise<void> {
     this.logger.info("downloading key to file", {
       bucket,
       key,
-      file: writeStream.path.toString(),
+      file: stream.path.toString(),
     });
 
     const isComplete = (end: number, length: number) => end === length - 1;
@@ -159,7 +159,7 @@ export class S3 {
           nextRange.end,
         );
 
-        writeStream.write(await Body?.transformToByteArray());
+        stream.write(await Body?.transformToByteArray());
 
         rangeAndLength = getRangeAndLength(ContentRange || "");
       }
@@ -167,16 +167,18 @@ export class S3 {
       this.logger.info("successfully downloaded key to file", {
         bucket,
         key,
-        file: writeStream.path.toString(),
+        file: stream.path.toString(),
       });
     } catch (error) {
       this.logger.error("failed to download key to file", {
         bucket,
         key,
-        file: writeStream.path.toString(),
+        file: stream.path.toString(),
       });
 
       throw error;
+    } finally {
+      stream.end();
     }
   }
 
