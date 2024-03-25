@@ -182,35 +182,6 @@ export class S3 {
     }
   }
 
-  async updateObjectMetadata(
-    bucket: string,
-    key: string,
-    metadata: Record<string, string>,
-  ): Promise<void> {
-    this.logger.info("updating metadata of object", { bucket, key, metadata });
-
-    try {
-      await this.s3.send(
-        new CopyObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          CopySource: [bucket, key].join("/"),
-          MetadataDirective: "REPLACE",
-          Metadata: metadata,
-        }),
-      );
-
-      this.logger.info("successfully updated metadata of object", {
-        bucket,
-        key,
-      });
-    } catch (error) {
-      this.logger.info("failed to update metadata of object", { bucket, key });
-
-      throw error;
-    }
-  }
-
   async putObject(
     bucket: string,
     key: string,
