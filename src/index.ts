@@ -52,12 +52,10 @@ export class S3 {
 
       return response;
     } catch (error) {
-      this.logger.error("failed to retrieve head of object", error, {
-        bucket,
-        key,
-      });
-
-      throw error;
+      throw this.generateError(
+        error,
+        `failed to retrieve head of object '${key}' from '${bucket}'`,
+      );
     }
   }
 
@@ -79,9 +77,10 @@ export class S3 {
 
       return response;
     } catch (error) {
-      this.logger.error("failed to get object", error, { bucket, key });
-
-      throw error;
+      throw this.generateError(
+        error,
+        `failed to get object '${key}' from '${bucket}'`,
+      );
     }
   }
 
@@ -89,11 +88,7 @@ export class S3 {
     const object = await this.getObject(bucket, key);
 
     if (!object.Body || !object.ContentLength) {
-      const error = new Error("object body was undefined");
-
-      this.logger.error(error);
-
-      throw error;
+      throw this.generateError(new Error(), "object body was undefined");
     }
 
     return object.Body.transformToString();
@@ -103,11 +98,7 @@ export class S3 {
     const object = await this.getObject(bucket, key);
 
     if (!object.Body || !object.ContentLength) {
-      const error = new Error("object body was undefined");
-
-      this.logger.error(error);
-
-      throw error;
+      throw this.generateError(new Error(), "object body was undefined");
     }
 
     return object.Body.transformToByteArray();
@@ -170,13 +161,10 @@ export class S3 {
         file: stream.path.toString(),
       });
     } catch (error) {
-      this.logger.error("failed to download key to file", {
-        bucket,
-        key,
-        file: stream.path.toString(),
-      });
-
-      throw error;
+      throw this.generateError(
+        error,
+        `failed to download object '${key}' from '${bucket}' to file '${stream.path.toString()}'`,
+      );
     } finally {
       stream.end();
     }
@@ -202,9 +190,22 @@ export class S3 {
 
       this.logger.info("successfully put object", { bucket, key });
     } catch (error) {
-      this.logger.error("failed to put object", { bucket, key });
-
-      throw error;
+      throw this.generateError(
+        error,
+        `failed to put object '${key}' in '${bucket}'`,
+      );
     }
+  }
+
+  private generateError(error: unknown, message: string) {
+    this.logger.error(message);
+
+    if (error instanceof Error) {
+      error.message = message;
+    } else {
+      error = new Error(message);
+    }
+
+    return error;
   }
 }
