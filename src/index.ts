@@ -1,5 +1,4 @@
 import {
-  CopyObjectCommand,
   GetObjectCommand,
   GetObjectCommandOutput,
   HeadObjectCommand,
@@ -22,13 +21,17 @@ export {
 export class S3 {
   private logger: ILogger;
 
+  private storageClass: StorageClass;
+
   private static ONE_MB = 1024 * 1024;
 
   constructor(
     private s3: S3Client,
     logger?: ILogger,
+    storageClass?: StorageClass,
   ) {
     this.logger = logger || new ConsoleLogger();
+    this.storageClass = storageClass || StorageClass.STANDARD;
   }
 
   async headObject(
@@ -174,7 +177,7 @@ export class S3 {
     bucket: string,
     key: string,
     body: string,
-    storageClass: StorageClass = StorageClass.STANDARD,
+    storageClass?: StorageClass,
   ): Promise<void> {
     this.logger.info("putting object", { bucket, key });
 
@@ -184,7 +187,7 @@ export class S3 {
           Bucket: bucket,
           Key: key,
           Body: body,
-          StorageClass: storageClass,
+          StorageClass: storageClass || this.storageClass,
         }),
       );
 
