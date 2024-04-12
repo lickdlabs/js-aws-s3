@@ -4,6 +4,7 @@ import {
   HeadObjectCommand,
   HeadObjectCommandOutput,
   PutObjectCommand,
+  PutObjectCommandInput,
   S3Client,
   StorageClass,
 } from "@aws-sdk/client-s3";
@@ -179,23 +180,27 @@ export class S3 {
     body: string,
     storageClass?: StorageClass,
   ): Promise<void> {
-    this.logger.info("putting object", { bucket, key });
+    const input: PutObjectCommandInput = {
+      Bucket: bucket,
+      Key: key,
+      Body: body,
+      StorageClass: storageClass || this.storageClass,
+    };
+
+    this.logger.info(
+      `putting object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass})'`,
+    );
 
     try {
-      await this.s3.send(
-        new PutObjectCommand({
-          Bucket: bucket,
-          Key: key,
-          Body: body,
-          StorageClass: storageClass || this.storageClass,
-        }),
-      );
+      await this.s3.send(new PutObjectCommand(input));
 
-      this.logger.info("successfully put object", { bucket, key });
+      this.logger.info(
+        `successfully put object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass}'`,
+      );
     } catch (error) {
       throw this.generateError(
         error,
-        `failed to put object '${key}' in '${bucket}'`,
+        `failed to put object put object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass}'`,
       );
     }
   }
