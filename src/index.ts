@@ -1,6 +1,6 @@
 import * as Sdk from "@aws-sdk/client-s3";
 import { ConsoleLogger, ILogger } from "@lickd/logger";
-import { ReadStream, WriteStream } from "fs";
+import { WriteStream, createReadStream } from "fs";
 
 export {
   GetObjectCommandOutput,
@@ -201,48 +201,40 @@ export class S3 {
   async uploadObject(
     bucket: string,
     key: string,
-    stream: ReadStream,
+    file: string,
     storageClass?: Sdk.StorageClass,
   ): Promise<void> {
-    if (stream.readableHighWaterMark < S3.FIVE_MB) {
-      throw new Error("stream high water mark must be 5 megabytes or higher");
-    }
-
-    this.logger.info("uploading file to key", {
-      file: stream.path.toString(),
-      bucket,
-      key,
-    });
-
     return new Promise(async (resolve) => {
+      this.logger.info("uploading file to key", { file, bucket, key });
+
+      const stream = createReadStream(file, { highWaterMark: S3.FIVE_MB });
+
       const upload = await this.createMultipartUpload(
         bucket,
         key,
         storageClass,
       );
 
-      const promises: Promise<Sdk.UploadPartCommandOutput>[] = [];
+      const uploads: Promise<Sdk.UploadPartCommandOutput>[] = [];
 
       stream.on("data", (data) => {
         const input: Sdk.UploadPartCommandInput = {
           Bucket: bucket,
           Key: key,
           UploadId: upload.UploadId,
-          PartNumber: promises.length + 1,
+          PartNumber: uploads.length + 1,
           Body: data,
         };
 
-        promises.push(this.s3.send(new Sdk.UploadPartCommand(input)));
+        uploads.push(this.s3.send(new Sdk.UploadPartCommand(input)));
       });
 
       stream.on("end", async () => {
-        this.logger.info(`uploading ${promises.length} parts to s3`);
+        this.logger.info(`uploading ${uploads.length} parts to s3`);
 
-        const parts = await Promise.all(promises);
+        const parts = await Promise.all(uploads);
 
-        this.logger.info(
-          `successfully uploaded ${promises.length} parts to s3`,
-        );
+        this.logger.info(`successfully uploaded ${uploads.length} parts to s3`);
 
         await this.completeMultipartUpload(bucket, key, upload, parts);
 
