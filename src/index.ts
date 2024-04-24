@@ -1,13 +1,13 @@
 import * as Sdk from "@aws-sdk/client-s3";
 import { ConsoleLogger, ILogger } from "@lickd/logger";
-import { WriteStream } from "fs";
+import { ReadStream, WriteStream } from "fs";
 
 export {
   GetObjectCommandOutput,
   HeadObjectCommandOutput,
   S3Client,
   S3ServiceException,
-  StorageClass,
+  StorageClass
 } from "@aws-sdk/client-s3";
 
 export class S3 {
@@ -16,6 +16,8 @@ export class S3 {
   private storageClass: Sdk.StorageClass;
 
   private static ONE_MB = 1024 * 1024;
+
+  private static FIVE_MB = S3.ONE_MB * 5;
 
   constructor(
     private s3: Sdk.S3Client,
@@ -196,6 +198,65 @@ export class S3 {
     }
   }
 
+  async uploadObject(
+    bucket: string,
+    key: string,
+    stream: ReadStream,
+    storageClass?: Sdk.StorageClass,
+  ): Promise<void> {
+    if (stream.readableHighWaterMark < S3.FIVE_MB) {
+      throw new Error("stream high water mark must be 5 megabytes or higher");
+    }
+    
+    this.logger.info("uploading file to key", {
+      file: stream.path.toString(),
+      bucket,
+      key,
+    });
+
+    return new Promise(async (resolve) => {
+      const upload = await this.createMultipartUpload(
+        bucket,
+        key,
+        storageClass,
+      );
+
+      const promises: Promise<Sdk.UploadPartCommandOutput>[] = [];
+
+      stream.on("data", (data) => {
+        const input: Sdk.UploadPartCommandInput = {
+          Bucket: bucket,
+          Key: key,
+          UploadId: upload.UploadId,
+          PartNumber: promises.length + 1,
+          Body: data,
+        };
+
+        promises.push(this.s3.send(new Sdk.UploadPartCommand(input)));
+      });
+
+      stream.on("end", async () => {
+        this.logger.info(`uploading ${promises.length} parts to s3`);
+
+        const parts = await Promise.all(promises);
+
+        this.logger.info(
+          `successfully uploaded ${promises.length} parts to s3`,
+        );
+
+        await this.completeMultipartUpload(bucket, key, upload, parts);
+
+        this.logger.info("successfully uploaded file to key", {
+          file: stream.path.toString(),
+          bucket,
+          key,
+        });
+
+        resolve();
+      });
+    });
+  }
+
   private generateError(error: unknown, message: string) {
     this.logger.error(message);
 
@@ -206,5 +267,66 @@ export class S3 {
     }
 
     return error;
+  }
+
+  private async createMultipartUpload(
+    bucket: string,
+    key: string,
+    storageClass?: Sdk.StorageClass,
+  ): Promise<Sdk.CreateMultipartUploadCommandOutput> {
+    const input: Sdk.CreateMultipartUploadCommandInput = {
+      Bucket: bucket,
+      Key: key,
+      StorageClass: storageClass || this.storageClass,
+    };
+
+    this.logger.info(
+      `creating multipart upload for object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass})'`,
+    );
+
+    const response = await this.s3.send(
+      new Sdk.CreateMultipartUploadCommand(input),
+    );
+
+    if (!response.UploadId) {
+      throw new Error(
+        `could not create multipart upload for object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass})'`,
+      );
+    }
+
+    this.logger.info(
+      `successfully created multipart upload for object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass})'`,
+    );
+
+    return response;
+  }
+
+  private async completeMultipartUpload(
+    bucket: string,
+    key: string,
+    upload: Sdk.CreateMultipartUploadCommandOutput,
+    parts: Sdk.UploadPartCommandOutput[],
+  ): Promise<void> {
+    const input: Sdk.CompleteMultipartUploadCommandInput = {
+      Bucket: bucket,
+      Key: key,
+      UploadId: upload.UploadId,
+      MultipartUpload: {
+        Parts: parts.map(({ ETag }, i) => ({
+          ETag,
+          PartNumber: i + 1,
+        })),
+      },
+    };
+
+    this.logger.info(
+      `completing multipart upload for object '${input.Key}' in '${input.Bucket}'`,
+    );
+
+    await this.s3.send(new Sdk.CompleteMultipartUploadCommand(input));
+
+    this.logger.info(
+      `successfully completed multipart upload for object '${input.Key}' in '${input.Bucket}'`,
+    );
   }
 }
