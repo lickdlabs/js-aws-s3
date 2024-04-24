@@ -1,13 +1,4 @@
-import {
-  GetObjectCommand,
-  GetObjectCommandOutput,
-  HeadObjectCommand,
-  HeadObjectCommandOutput,
-  PutObjectCommand,
-  PutObjectCommandInput,
-  S3Client,
-  StorageClass,
-} from "@aws-sdk/client-s3";
+import * as Sdk from "@aws-sdk/client-s3";
 import { ConsoleLogger, ILogger } from "@lickd/logger";
 import { WriteStream } from "fs";
 
@@ -22,28 +13,28 @@ export {
 export class S3 {
   private logger: ILogger;
 
-  private storageClass: StorageClass;
+  private storageClass: Sdk.StorageClass;
 
   private static ONE_MB = 1024 * 1024;
 
   constructor(
-    private s3: S3Client,
+    private s3: Sdk.S3Client,
     logger?: ILogger,
-    storageClass?: StorageClass,
+    storageClass?: Sdk.StorageClass,
   ) {
     this.logger = logger || new ConsoleLogger();
-    this.storageClass = storageClass || StorageClass.STANDARD;
+    this.storageClass = storageClass || Sdk.StorageClass.STANDARD;
   }
 
   async headObject(
     bucket: string,
     key: string,
-  ): Promise<HeadObjectCommandOutput> {
+  ): Promise<Sdk.HeadObjectCommandOutput> {
     this.logger.info("retrieving head of object", { bucket, key });
 
     try {
       const response = await this.s3.send(
-        new HeadObjectCommand({
+        new Sdk.HeadObjectCommand({
           Bucket: bucket,
           Key: key,
         }),
@@ -66,12 +57,12 @@ export class S3 {
   async getObject(
     bucket: string,
     key: string,
-  ): Promise<GetObjectCommandOutput> {
+  ): Promise<Sdk.GetObjectCommandOutput> {
     this.logger.info("getting object", { bucket, key });
 
     try {
       const response = await this.s3.send(
-        new GetObjectCommand({
+        new Sdk.GetObjectCommand({
           Bucket: bucket,
           Key: key,
         }),
@@ -122,7 +113,7 @@ export class S3 {
     const isComplete = (end: number, length: number) => end === length - 1;
 
     const getObjectRange = (start: number, end: number) => {
-      const command = new GetObjectCommand({
+      const command = new Sdk.GetObjectCommand({
         Bucket: bucket,
         Key: key,
         Range: `bytes=${start}-${end}`,
@@ -178,9 +169,9 @@ export class S3 {
     bucket: string,
     key: string,
     body: string,
-    storageClass?: StorageClass,
+    storageClass?: Sdk.StorageClass,
   ): Promise<void> {
-    const input: PutObjectCommandInput = {
+    const input: Sdk.PutObjectCommandInput = {
       Bucket: bucket,
       Key: key,
       Body: body,
@@ -192,7 +183,7 @@ export class S3 {
     );
 
     try {
-      await this.s3.send(new PutObjectCommand(input));
+      await this.s3.send(new Sdk.PutObjectCommand(input));
 
       this.logger.info(
         `successfully put object '${input.Key}' in '${input.Bucket}' as '${input.StorageClass}'`,
