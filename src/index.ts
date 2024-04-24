@@ -7,7 +7,7 @@ export {
   HeadObjectCommandOutput,
   S3Client,
   S3ServiceException,
-  StorageClass
+  StorageClass,
 } from "@aws-sdk/client-s3";
 
 export class S3 {
@@ -207,7 +207,7 @@ export class S3 {
     if (stream.readableHighWaterMark < S3.FIVE_MB) {
       throw new Error("stream high water mark must be 5 megabytes or higher");
     }
-    
+
     this.logger.info("uploading file to key", {
       file: stream.path.toString(),
       bucket,
