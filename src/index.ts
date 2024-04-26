@@ -249,18 +249,6 @@ export class S3 {
     });
   }
 
-  private generateError(error: unknown, message: string) {
-    this.logger.error(message);
-
-    if (error instanceof Error) {
-      error.message = message;
-    } else {
-      error = new Error(message);
-    }
-
-    return error;
-  }
-
   private async createMultipartUpload(
     bucket: string,
     key: string,
@@ -320,5 +308,17 @@ export class S3 {
     this.logger.info(
       `successfully completed multipart upload for object '${input.Key}' in '${input.Bucket}'`,
     );
+  }
+
+  private generateError(error: unknown, message: string) {
+    this.logger.error(message);
+
+    if (error instanceof Error) {
+      error.message = message;
+    } else {
+      error = new Error(message);
+    }
+
+    return error;
   }
 }
