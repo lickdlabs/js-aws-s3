@@ -277,32 +277,31 @@ export class S3 {
     });
   }
 
-  async deleteObjects(
-    bucket: string,
-    prefix?: string,
-  ): Promise<Sdk.DeleteObjectCommandOutput> {
+  async deleteObjects(bucket: string, prefix?: string): Promise<void> {
     this.logger.info("deleting objects", { bucket, prefix });
 
     try {
-      const response = await this.s3.send(
-        new Sdk.DeleteObjectsCommand({
-          Bucket: bucket,
-          Delete: {
-            Objects: (await this.listObjects(bucket, prefix)).Contents?.map(
-              (object) => ({
-                Key: object.Key,
-              }),
-            ),
-          },
+      const objects = (await this.listObjects(bucket, prefix)).Contents?.map(
+        (object) => ({
+          Key: object.Key,
         }),
       );
+
+      if (objects && objects.length > 0) {
+        await this.s3.send(
+          new Sdk.DeleteObjectsCommand({
+            Bucket: bucket,
+            Delete: {
+              Objects: objects,
+            },
+          }),
+        );
+      }
 
       this.logger.info("successfully deleted objects", {
         bucket,
         prefix,
       });
-
-      return response;
     } catch (error) {
       throw this.generateError(
         error,
