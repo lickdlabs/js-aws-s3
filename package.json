@@ -1,6 +1,6 @@
 {
   "name": "@lickd/aws-s3",
-  "version": "0.0.29",
+  "version": "0.1.0",
   "description": "Lickd AWS S3 client",
   "repository": {
     "type": "git",
