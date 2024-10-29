@@ -28,6 +28,34 @@ export class S3 {
     this.storageClass = storageClass || Sdk.StorageClass.STANDARD;
   }
 
+  async listObjects(
+    bucket: string,
+    prefix?: string,
+  ): Promise<Sdk.ListObjectsCommandOutput> {
+    this.logger.info("listing objects", { bucket, prefix });
+
+    try {
+      const response = await this.s3.send(
+        new Sdk.ListObjectsV2Command({
+          Bucket: bucket,
+          Prefix: prefix,
+        }),
+      );
+
+      this.logger.info("successfully listed objects", {
+        bucket,
+        prefix,
+      });
+
+      return response;
+    } catch (error) {
+      throw this.generateError(
+        error,
+        `failed to list objects in '${prefix}' from '${bucket}'`,
+      );
+    }
+  }
+
   async headObject(
     bucket: string,
     key: string,
@@ -247,6 +275,40 @@ export class S3 {
         resolve();
       });
     });
+  }
+
+  async deleteObjects(
+    bucket: string,
+    prefix?: string,
+  ): Promise<Sdk.DeleteObjectCommandOutput> {
+    this.logger.info("deleting objects", { bucket, prefix });
+
+    try {
+      const response = await this.s3.send(
+        new Sdk.DeleteObjectsCommand({
+          Bucket: bucket,
+          Delete: {
+            Objects: (await this.listObjects(bucket, prefix)).Contents?.map(
+              (object) => ({
+                Key: object.Key,
+              }),
+            ),
+          },
+        }),
+      );
+
+      this.logger.info("successfully deleted objects", {
+        bucket,
+        prefix,
+      });
+
+      return response;
+    } catch (error) {
+      throw this.generateError(
+        error,
+        `failed to delete objects in '${prefix}' from '${bucket}'`,
+      );
+    }
   }
 
   private async createMultipartUpload(
